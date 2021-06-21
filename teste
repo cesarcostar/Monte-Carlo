@@ -1,0 +1,128 @@
+
+
+# Estudos por Simula��o em Estat�stica
+# Complemento as notas de aula
+# Prof. George von Borries
+# Traduzido e adaptado de M. Davidian, NCSU
+
+# Gerando conjuntos de dados da Normal(mu,sigma)
+
+generate.normal <- function(S,n,mu,sigma){
+  dat <- matrix(rnorm(n*S,mu,sigma),ncol=n,byrow=T) 
+  out <- list(dat=dat)
+  return(out)
+}
+
+# Fun��o para calcular as estat�sticas resumo dos S conjuntos de dados
+
+simsum <- function(dat,trueval){
+  S <- nrow(dat)
+  MCmean <- apply(dat,2,mean)
+  MCbias <- MCmean-trueval
+  MCrelbias <- MCbias/trueval
+  MCstddev <- sqrt(apply(dat,2,var))
+  MCMSE <- apply((dat-trueval)^2,2,mean)  
+  #   MCMSE <- MCbias^2 + MCstddev^2   # alternativa aproximada
+  MCRE <- MCMSE[1]/MCMSE
+  sumdat <- rbind(rep(trueval,3),S,MCmean,MCbias,MCrelbias,MCstddev,MCMSE,
+                  MCRE)
+  names <- c("verdadeiro valor","# sims","MC m�dia","MC vi�s","MC vi�s relativo",
+             "MC standard deviation","MC MSE","MC efici�ncia relativa")
+  ests <- c("M�dia Amostral","M�dia Aparada","Mediana")
+  dimnames(sumdat) <- list(names,ests)
+  round(sumdat,5)
+}
+
+#  Fun��o para ver as primeiras k linhas de um conjunto de dados
+
+view <- function(dat,k){
+  message <- paste("Primeiras",k,"linhas")
+  krows <- dat[1:k,]
+  cat(message,"\n","\n")
+  print(krows)
+}
+
+
+# Exemplo 1: Comparando Estimadores
+
+set.seed(12345)
+
+S <- 1000
+n <- 15
+trimmean <- function(Y){mean(Y,0.2)}
+
+# Distribui��o verdadeira considerada e Par�metros
+
+mu <- 1
+sigma <- sqrt(1.5)
+
+gnorm <- generate.normal(S,n,mu,sigma)
+
+outsampmean <- apply(gnorm$dat,1,mean)
+outtrimmean <- apply(gnorm$dat,1,trimmean)
+outmedian   <- apply(gnorm$dat,1,median)
+
+summary.sim <- data.frame(media=outsampmean,media.ap=outtrimmean,mediana=outmedian)
+results <- simsum(summary.sim,mu)
+
+view(round(summary.sim,4),5)
+results
+  
+
+# Intervalo e cobertura baseada na m�dia amostral
+
+  sampmean.ses <- sqrt(apply(gnorm$dat,1,var)/n)
+  ave.sampmeanses <- mean(sampmean.ses)
+  t05 <- qt(0.975,n-1)
+  cobertura <- sum((outsampmean-t05*sampmean.ses <= mu) & 
+                   (outsampmean+t05*sampmean.ses >= mu))/S
+
+  cobertura
+
+# Avalia��o do n�vel (tamanho) de um teste.
+  
+# Testando se a m�dia populacional � diferente de 1 para uma
+# amostra de tamanho 15 retirada de uma normal com vari�ncia 1.5
+  
+set.seed(2376)
+S <- 1000
+n <- 15
+sigma <- sqrt(1.5)
+mu0 <- 1
+mu  <- 1
+
+gnorm <- generate.normal(S,n,mu,sigma)
+ttest <- (apply(gnorm$dat,1,mean) - mu0) / 
+          (sqrt(apply(gnorm$dat,1,var)/n))
+t05 <- qt(0.975,n-1)
+nivel <- sum(abs(ttest)>t05)/S
+nivel
+  
+# Avaliando o Poder de um teste.
+
+mu <- 1.75
+gnorm <- generate.normal(S,n,mu,sigma)
+ttest <- (apply(gnorm$dat,1,mean) - mu0) / 
+  (sqrt(apply(gnorm$dat,1,var)/n))
+t05 <- qt(0.975,n-1)
+poder <- sum(abs(ttest)>t05)/S
+poder
+
+poder <- seq(-1,2.6,0.2)
+i <- 0
+
+for(mu in c(seq(-1,2.6,0.2))) {
+  i <- i + 1
+  gnorm <- generate.normal(S,n,mu,sigma)
+  ttest <- (apply(gnorm$dat,1,mean) - mu0) / 
+    (sqrt(apply(gnorm$dat,1,var)/n))
+  poder[i] <- sum(abs(ttest)>t05)/S
+}
+
+m1 <- seq(-1,2.6,0.2)
+plot(m1,poder,type='l',lwd=2,col="blue")
+abline(h=c(0.05,1), lty=2, lwd=2)
+
+
+
+
